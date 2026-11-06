@@ -1,0 +1,24 @@
+name: debug-token
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dbg:
+    runs-on: ubuntu-latest
+    env:
+      WB_ACCESS_TOKEN: ${{ secrets.WB_ACCESS_TOKEN }}
+    steps:
+      - name: inspect
+        run: |
+          echo "len=${#WB_ACCESS_TOKEN}"
+          echo "head=[${WB_ACCESS_TOKEN:0:16}]"
+          echo "tail=[${WB_ACCESS_TOKEN: -16}]"
+          printf '%s' "$WB_ACCESS_TOKEN" | wc -c
+          echo "--- curl (raw) ---"
+          curl -s -o /tmp/r.txt -w "HTTP %{http_code}\n" -X POST \
+            -H "Authorization: Bearer $WB_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: WorkBuddy" \
+            https://copilot.tencent.com/v2/billing/meter/checkin-activity-status
+          echo "body:"; head -c 200 /tmp/r.txt
