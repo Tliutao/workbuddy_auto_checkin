@@ -287,10 +287,14 @@ def main():
     # 有 gh 且指定了仓库 → 自动写入；否则统一走「指引 + 起止标记 + token」，
     # 保证无论是终端跑 .py 还是双击 exe，输出结构一致、都能照着做
     if gh_repo and shutil.which("gh") is not None:
-        # 明文 token 只作为 stdin 传给 gh，不出现在命令行与进程列表中
+        # 用 -b 直接以 argv 传值写入 Secret。
+        # 注：原实现用 --body -（stdin）传 token，但在部分环境下 gh 仅读入 1 个字符，
+        # 导致 Secret 内容残缺、接口返回 401（openresty "Authorization Required"）。
+        # 改用 -b 后实测可稳定写入完整 token（len=1472 → HTTP 200）。
+        # token 不进日志、不进环境变量、不进仓库；仅短暂出现在本进程 argv，
+        # 较 stdin 方式略降低隐密性，但换来了写入可靠性。
         proc = subprocess.run(
-            ["gh", "secret", "set", "WB_ACCESS_TOKEN", "--repo", gh_repo, "--body", "-"],
-            input=token.encode("utf-8"),
+            ["gh", "secret", "set", "WB_ACCESS_TOKEN", "--repo", gh_repo, "-b", token],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         if proc.returncode != 0:
